@@ -1,0 +1,26 @@
+---
+# Apt cache server
+- hosts: all
+  roles:
+    - { role: elnappoo.apt-cacher-ng, apt_cacher_ng_setup_ufw: False }
+
+# Apt cache client
+- hosts: all
+  tasks:
+  - lineinfile: dest=/etc/apt/apt.conf.d/01proxy regexp='http:' line='Acquire::http { Proxy "http://localhost:3142"; };' create=yes state=present owner=root group=root mode=0644
+  - lineinfile: dest=/etc/apt/apt.conf.d/01proxy regexp='https:' line='Acquire::https { Proxy "https://"; };' create=yes state=present owner=root group=root mode=0644
+
+# Docker installation
+- hosts: all
+  become: yes
+  tasks:
+    - apt: "name={{ item }} state=present"
+      with_items:
+        - apt-transport-https
+        - ca-certificates
+    - apt_key: keyserver=hkp://pgp.mit.edu:80 id=58118E89F3A912897C070ADBF76221572C52609D state=present
+    - apt_repository: repo='deb https://apt.dockerproject.org/repo debian-jessie main' state=present
+    - apt: name=docker-engine state=present
+    - user: name={{ ansible_ssh_user }} groups=docker append=yes
+    - service: name=docker state=restarted
+
